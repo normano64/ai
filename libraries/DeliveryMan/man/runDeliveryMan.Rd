@@ -4,8 +4,8 @@
 \alias{runDeliveryMan}
 \title{Run Delivery Man}
 \usage{
-runDeliveryMan(carReady = manualDM, dim = 10, turns = 2000, pause = 0.1,
-  del = 5)
+runDeliveryMan(carReady = manualDM, dim = 10, turns = 2000, doPlot = T,
+  pause = 0.1, del = 5)
 }
 \arguments{
 \item{carReady}{Your function that takes three arguments: (1) a list of two matrices giving the
@@ -28,6 +28,8 @@ Your function should return the car object with the nextMove specified.}
 \item{turns}{The number of turns the game should go for if deliveries are not made. Ignore this
 except for noting that the default is 2000 so if you have not made deliveries after 2000 turns
 you fail.}
+
+\item{doPlot}{Specifies if you want the game state to be plotted each turn.}
 
 \item{pause}{The pause period between moves. Ignore this.}
 

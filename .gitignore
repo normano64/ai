@@ -35,3 +35,4 @@ vignettes/*.pdf
 *.mtc1
 *.out
 *.synctex.gz
+/libraries/.RData

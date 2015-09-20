@@ -1,3 +1,4 @@
+?seq.along
 dumbDM=function(roads,car,packages){
   car$nextMove=sample(c(2,4,6,8),1)
   return (car)
@@ -55,21 +56,25 @@ manualDM=function(roads,car,packages) {
 #' @param turns The number of turns the game should go for if deliveries are not made. Ignore this 
 #' except for noting that the default is 2000 so if you have not made deliveries after 2000 turns
 #' you fail.
+#' @param doPlot Specifies if you want the game state to be plotted each turn.
 #' @param pause The pause period between moves. Ignore this.
 #' @param del The number of deliveries. You will be scored on a board with 5 deliveries.
 #' @return A string describing the outcome of the game.
 #' @export
-runDeliveryMan <- function (carReady=manualDM,dim=10,turns=2000,pause=0.1,del=5) {
+runDeliveryMan <- function (carReady=manualDM,dim=10,turns=2000,
+                            doPlot=T,pause=0.1,del=5) {
   roads=makeRoadMatrices(dim)
   car=list(x=1,y=1,wait=0,load=0,nextMove=NA,mem=list())
   packages=matrix(sample(1:dim,replace=T,5*del),ncol=5)
   packages[,5]=rep(0,del)
   for (i in 1:turns) {
-    makeDotGrid(dim,i) 
     roads=updateRoads(roads$hroads,roads$vroads)
-    plotRoads(roads$hroads,roads$vroads) 
-    points(car$x,car$y,pch=16,col="blue",cex=3)  
-    plotPackages(packages)
+    if (doPlot) {
+      makeDotGrid(dim,i) 
+      plotRoads(roads$hroads,roads$vroads) 
+      points(car$x,car$y,pch=16,col="blue",cex=3)  
+      plotPackages(packages)      
+    }
     if (car$wait==0) {
       if (car$load==0) {
         on=packageOn(car$x,car$y,packages)
@@ -90,7 +95,7 @@ runDeliveryMan <- function (carReady=manualDM,dim=10,turns=2000,pause=0.1,del=5)
     } else {
       car$wait=car$wait-1
     }
-    Sys.sleep(pause)
+    if (pause>0) Sys.sleep(pause)
   }
   print (paste("You failed to complete the task. Try again."))
   return (NA)
