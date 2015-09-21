@@ -7,96 +7,108 @@
 ##   }
 ## }
 
-reconstruct = function(pre, goal, start) {
-
+reconstruct = function(nodes, start) {
+    ## List for reconstructed path
     path = list()
-    current = goal
-    path[[1]] = current
 
-    print(pre)
-    
-    while(all(current != start)) {
-        for(i in length(pre)) {
-            if(all(pre[[i]][[2]] == current)) {
-                print(current)
-                current = pre[[i]][[1]]
-                path[[length(path) + 1]] = current
+    ## Current node as list(node, parent node))
+    current = nodes[[length(nodes)]]
+    path[[1]] = current[[1]]
+
+    ## Loop until path has been reconstructed
+    while(!(all(current[[2]] == start))) {
+        for(i in 1:length(nodes)) {
+            ## Current parent in nodes
+            if(all(nodes[[i]][[1]] == current[[2]])) {
+                ## Set current node and save it in path
+                current = nodes[[i]]
+                path[[length(path) + 1]] = current[[1]]
                 break
             }
+            ## Sys.sleep(1)
         }
     }
 
+    ## Add start to path
+    path[[length(path) + 1]] = c(x=start[1], y=start[2])
+    
     return(path)
 }
 
 astar = function(sx, sy, gx, gy, hroads, vroads) {
+    ## Create frontier queue and push start node
     frontier = queue()
-    frontier$push(manhattan(sx, sy, gx, gy), c(x = sx, y = sy))
+    frontier$push(manhattan(c(sx, sy), c(gx, gy)), list(c(x=sx, y=sy),c(x=0,y=0)))
+    
+    ## Lists of visited nodes
     visited = list()
-    costs = list()
-    path = list()
 
+    ## Number of rows & cols
     nrow = nrow(hroads)
     ncol = ncol(vroads)
-    costmatrix = matrix(rep(-1, nrow * ncol), ncol = ncol)
     
     while(TRUE) {
+        ## Pop nod with lowest cost
         pop = frontier$pop()
-        if(all(c(pop[2], pop[3]) == c(gx, gy))) {
-            return(reconstruct(path, c(gx, gy), c(sx, sy)))
-            ## (list(visited, costs))
-        }
-        costs[[length(costs) + 1]] = pop[1]
-        visited[[length(visited) + 1]] = c(pop[2], pop[3])
+        curcost = pop[[1]]
+        current = pop[[2]]
+        ## Add node to visited
+        visited[[length(visited) + 1]] = list(current, pop[[3]])
 
-        current = c(cost = pop[1], pop[2], pop[3])
+        ## Break loop if node is goal
+        if(all(current == c(gx, gy))) {
+            break;
+        }   
 
+        ## List of nodes not yet visited
         nodes = list()
-        paths = list()
-
-        ## print(matrix(c("Costs", costs), nrow = 1), row.names = FALSE)
-        ## print(matrix(visited, nrow = 1), row.names = FALSE)
-        ## print(current, row.names = FALSE)
-        ## Sys.sleep(5)
+        ## List of cost to those nodes
+        costs = list()
+            
+        ## If node to left exists and not yet visited
+        if(current[1] > 1 && !(list(c(current[1] - 1, current[2])) %in% visited)) {
+            nodes[[length(nodes) + 1]] = c(current[1] - 1, current[2])
+            costs = append(costs, vroads[current[2], current[1] - 1])
+        }   
+        ## If node to right exists and not yet visited
+        if(current[1] < ncol && !(list(c(current[1] + 1, current[2])) %in% visited)) {
+            nodes[[length(nodes) + 1]] = c(current[1] + 1, current[2])
+            costs = append(costs, vroads[current[2], current[1] + 1])
+        }   
+        ## If node below exists and not yet visited
+        if(current[2] > 1 && !(list(c(current[1], current[2] - 1)) %in% visited)) {
+            nodes[[length(nodes) + 1]] = c(current[1], current[2] - 1)
+            costs = append(costs, hroads[current[2] - 1, current[1]])
+        }   
+        ## If node above exists and not yet visited
+        if(current[2] < nrow && !(list(c(current[1], current[2] + 1)) %in% visited)) {
+            nodes[[length(nodes) + 1]] = c(current[1], current[2] + 1)
+            costs = append(costs, hroads[current[2], current[1]])
+        }
         
-        ## x is larger than 1
-        if(current['x'] > 1) {
-            nodes[[length(nodes) + 1]] = c(current['x'] - 1, current['y'])
-            paths = append(paths, vroads[current['y'], current['x'] - 1])
-        }
-        ## x is smaller than ncol
-        if(current['x'] < ncol) {
-            nodes[[length(nodes) + 1]] = c(current['x'] + 1, current['y'])
-            paths = append(paths, vroads[current['y'], current['x'] + 1])
-        }
-        ## y is larger than 1
-        if(current['y'] > 1) {
-            nodes[[length(nodes) + 1]] = c(current['x'], current['y'] - 1)
-            print(matrix(current['x'],current['y']))
-            paths = append(paths, hroads[current['y'] - 1, current['x']])
-        }
-        ## y is smaller than nrow
-        if(current['y'] < nrow) {
-            nodes[[length(nodes) + 1]] = c(current['x'], current['y'] + 1)
-            paths = append(paths, hroads[current['y'] + 1, current['x']])
-        }
+        ## Loop over found nodes
         for(i in 1:length(nodes)) {
-            cost = (current['cost'] + manhattan(nodes[[i]]['x'], nodes[[i]]['y'], gx, gy) - manhattan(current['x'], current['y'], gx, gy) + paths[[i]])
-            if(frontier$exist(c(nodes[[i]]['x'], nodes[[i]]['y']))) {
-                if(frontier$peek(c(nodes[[i]]['x'], nodes[[i]]['y'])) > cost) {
-                    frontier$update(cost, c(nodes[[i]]['x'], nodes[[i]]['y']))
+            ## Cost to found node
+            cost = (curcost + manhattan(nodes[[i]], c(gx, gy)) - manhattan(current, c(gx, gy)) + costs[[i]])
+            
+            ## Push node to frontier or update existing one if lower cost
+            if(frontier$exist(nodes[[i]])) {
+                if(frontier$peek(nodes[[i]]) > cost) {
+                    frontier$update(cost, list(nodes[[i]],current))
                 }
             } else {
-                frontier$push(cost, c(nodes[[i]]['x'], nodes[[i]]['y']))
-                path[[length(path) + 1]] = list(c(current['x'], current['y']), c(nodes[[i]]['x'], nodes[[i]]['y']))
+                frontier$push(cost, list(nodes[[i]],current))
             }
-        }
+        }   
     }
-}
+    
+    ## Reconstruct path and return it
+    return(reconstruct(visited, c(sx, sy)))
+}           
 
 ## Manhattan distance from (c1, c2) to (g1, g2)
-manhattan = function(c1, c2, g1, g2) {
-    return (abs(c1 - g1) + abs(c2 - g2))
+manhattan = function(c, g) {
+    return (abs(c[1] - g[1]) + abs(c[2] - g[2]))
 }
 
 ## modified priority queue from
@@ -119,7 +131,7 @@ queue = function() {
     }
     ## updates value with new key
     update = function(key, value) {
-        index <- seek(value)
+        index <- seek(value[[1]])
         keys <<- keys[-index]
         values <<- values[-index]
         push(key, value)
@@ -129,7 +141,7 @@ queue = function() {
         index <- NULL
         if(!empty()){
             for(i in 1:size()) {
-                if(all(values[[i]] == value)) {
+                if(all(values[[i]][[1]] == value)) {
                     index <- i
                     break
                 }
