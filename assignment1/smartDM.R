@@ -68,22 +68,24 @@ astar = function(sx, sy, gx, gy, hroads, vroads) {
         ## If node to left exists and not yet visited
         if(current[1] > 1 && !(list(c(current[1] - 1, current[2])) %in% visited)) {
             nodes[[length(nodes) + 1]] = c(current[1] - 1, current[2])
-            costs = append(costs, vroads[current[2], current[1] - 1])
+            costs = append(costs, hroads[current[2], current[1] - 1])
         }   
         ## If node to right exists and not yet visited
-        if(current[1] < ncol && !(list(c(current[1] + 1, current[2])) %in% visited)) {
+        if(current[1] < nrow && !(list(c(current[1] + 1, current[2])) %in% visited)) {
             nodes[[length(nodes) + 1]] = c(current[1] + 1, current[2])
-            costs = append(costs, vroads[current[2], current[1] + 1])
+            print(c(v=1,current[1], current[2]))
+            costs = append(costs, hroads[current[2], current[1]])
         }   
         ## If node below exists and not yet visited
         if(current[2] > 1 && !(list(c(current[1], current[2] - 1)) %in% visited)) {
             nodes[[length(nodes) + 1]] = c(current[1], current[2] - 1)
-            costs = append(costs, hroads[current[2] - 1, current[1]])
+            costs = append(costs, vroads[current[2] - 1, current[1]])
         }   
         ## If node above exists and not yet visited
-        if(current[2] < nrow && !(list(c(current[1], current[2] + 1)) %in% visited)) {
+        if(current[2] < ncol && !(list(c(current[1], current[2] + 1)) %in% visited)) {
             nodes[[length(nodes) + 1]] = c(current[1], current[2] + 1)
-            costs = append(costs, hroads[current[2], current[1]])
+            print(c(h=1,current[1], current[2] + 1))
+            costs = append(costs, vroads[current[2], current[1]])
         }
         
         ## Loop over found nodes
