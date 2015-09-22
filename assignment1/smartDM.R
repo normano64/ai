@@ -1,11 +1,7 @@
 library("DeliveryMan")
 library("ggplot2")
 library("iterpc")
-
-#car.test <- c()
-#packages.test <- c()
-#roads.test <- c()
-#toGo.test <- 0
+ 
 smartDM = function(roads,car,packages) {
   toGo=0
   if(length(car$mem) > 0){
@@ -25,11 +21,13 @@ smartDM = function(roads,car,packages) {
   } else {
     toGo=car$load
   }
-  #car.test <<- car
-  #packages.test <<- packages
-  #roads.test <<- roads 
-  #toGo.test <<- toGo
-  path = astar(car$x, car$y, packages[toGo,3], packages[toGo,4], roads$hroads, roads$vroads) 
+  car.test <<- car
+  packages.test <<- packages
+  roads.test <<- roads 
+  toGo.test <<- toGo
+  if(packages[toGo,5] == 0){offset = 0} 
+  else{offset = 2}
+  path = astar(car$x, car$y, packages[toGo,1+offset], packages[toGo,2+offset], roads$hroads, roads$vroads) 
   nextNode = path[length(path) - 1][[1]]  
   # (2 down, 4 left, 6 right, 8 up, 5 stay still).
   if (all(c(car$x + 1, car$y) == nextNode)) {nextMove=6}
@@ -65,7 +63,6 @@ reconstruct = function(nodes, start) {
 
     ## Add start to path
     path[[length(path) + 1]] = c(x=start[1], y=start[2])
-    
     return(path)
 }
 
@@ -231,18 +228,18 @@ queue = function() {
     list(push = push, pop = pop, update = update, peek = peek, exist = exist, size = size, empty = empty)
 }
 
-# graphs=function(n){
-#   test.run <- replicate(10,runDeliveryMan(smartDM,visual=FALSE, pause=0))
-#   cumulative.average = cumsum(test.run) / seq_along(test.run)
-#   qplot(1:n, cumulative.average, geom=c("line","smooth"), ylab="Turns, Cumulatice Average", 
-#         xlab="Test runs", main="Performance, unoptimized version (basicDM)")
-#   tail(cumulative.average)
-#   
-#   #basicDM 263, optimized 207
-#   
-#   coststable <- as.data.frame(costs, test.run)
-#   ggplot(coststable, aes(x=costs, y=test.run)) + 
-#     ggtitle("Correlation, distance between paris and turns to complete") +
-#     xlab("Manhattan distance, origin - destination pairs") +
-#     ylab("Turns to complete") + geom_point() + geom_smooth(method=lm, se=FALSE)
-# }
+graphs=function(n){
+  test.run <- replicate(500,runDeliveryMan(smartDM,visual=FALSE, pause=0))
+  cumulative.average = cumsum(test.run) / seq_along(test.run)
+  qplot(1:500, cumulative.average, geom=c("line","smooth"), ylab="Turns, Cumulatice Average", 
+        xlab="Test runs", main="Performance, unoptimized version (basicDM)")
+  tail(cumulative.average)
+  
+  #basicDM 263, optimized 207
+  
+  coststable <- as.data.frame(costs, test.run)
+  ggplot(coststable, aes(x=costs, y=test.run)) + 
+    ggtitle("Correlation, distance between paris and turns to complete") +
+    xlab("Manhattan distance, origin - destination pairs") +
+    ylab("Turns to complete") + geom_point() + geom_smooth(method=lm, se=FALSE)
+}
