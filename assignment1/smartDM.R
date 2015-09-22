@@ -3,40 +3,44 @@ library("ggplot2")
 library("iterpc")
  
 smartDM = function(roads,car,packages) {
-  toGo=0
-  if(length(car$mem) > 0){
-    optimalOrder = car$mem[[1]]
-  }
-  if (car$load==0) {
-    if(length(car$mem) == 0){
-      optimalOrder = computeOptimalOrder(packages)
-      car$mem=list(optimalOrder)
+    toGo=0
+    if(length(car$mem) > 0){
+        optimalOrder = car$mem[[1]]
     }
-    for(i in optimalOrder){
-      if(packages[i,5] == 0 | packages[i,5] == 1){
-        toGo=i
-        break
-      }
+    if (car$load==0) {
+        if(length(car$mem) == 0){
+            optimalOrder = computeOptimalOrder(packages)
+            car$mem=list(optimalOrder)
+        }
+        for(i in optimalOrder){
+            if(packages[i,5] == 0 | packages[i,5] == 1){
+                toGo=i
+                break
+            }
+        }
+    } else {
+        toGo=car$load
     }
-  } else {
-    toGo=car$load
-  }
-  car.test <<- car
-  packages.test <<- packages
-  roads.test <<- roads 
-  toGo.test <<- toGo
-  if(packages[toGo,5] == 0){offset = 0} 
-  else{offset = 2}
-  path = astar(car$x, car$y, packages[toGo,1+offset], packages[toGo,2+offset], roads$hroads, roads$vroads) 
-  nextNode = path[length(path) - 1][[1]]  
-  # (2 down, 4 left, 6 right, 8 up, 5 stay still).
-  if (all(c(car$x + 1, car$y) == nextNode)) {nextMove=6}
-  else if (all(c(car$x - 1, car$y) == nextNode)) {nextMove=4}
-  else if (all(c(car$x, car$y + 1) == nextNode)) {nextMove=8}
-  else if (all(c(car$x, car$y - 1) == nextNode)) {nextMove=2}
-  else {nextMove=5}
-  car$nextMove=nextMove
-  return (car)
+    car.test <<- car
+    packages.test <<- packages
+    roads.test <<- roads 
+    toGo.test <<- toGo
+    if(packages[toGo,5] == 0){offset = 0} 
+    else{offset = 2}
+    path = astar(car$x, car$y, packages[toGo,1+offset], packages[toGo,2+offset], roads$hroads, roads$vroads)
+    if(length(path) > 1) {
+        nextNode = path[length(path) - 1][[1]]
+    } else {
+        nextNode = path[1][[1]]
+    }
+    ## (2 down, 4 left, 6 right, 8 up, 5 stay still).
+    if (all(c(car$x + 1, car$y) == nextNode)) {nextMove=6}
+    else if (all(c(car$x - 1, car$y) == nextNode)) {nextMove=4}
+    else if (all(c(car$x, car$y + 1) == nextNode)) {nextMove=8}
+    else if (all(c(car$x, car$y - 1) == nextNode)) {nextMove=2}
+    else {nextMove=5}
+    car$nextMove=nextMove
+    return (car)
 }
 
 reconstruct = function(nodes, start) {
@@ -46,6 +50,10 @@ reconstruct = function(nodes, start) {
     ## Current node as list(node, parent node))
     current = nodes[[length(nodes)]]
     path[[1]] = current[[1]]
+    
+    if(all(current[[1]] == start)) {
+        return(path)
+    }
 
     ## Loop until path has been reconstructed
     while(!(all(current[[2]] == start))) {
@@ -63,13 +71,14 @@ reconstruct = function(nodes, start) {
 
     ## Add start to path
     path[[length(path) + 1]] = c(x=start[1], y=start[2])
+    
     return(path)
 }
 
 astar = function(sx, sy, gx, gy, hroads, vroads) {
     ## Create frontier queue and push start node
     frontier = queue()
-    frontier$push(manhattan(c(sx, sy), c(gx, gy)), list(c(x=sx, y=sy),c(x=0,y=0)))
+    frontier$push(manhattan(sx, sy, gx, gy), list(c(x=sx, y=sy),c(x=0,y=0)))
     
     ## Lists of visited nodes
     visited = list()
@@ -104,7 +113,6 @@ astar = function(sx, sy, gx, gy, hroads, vroads) {
         ## If node to right exists and not yet visited
         if(current[1] < nrow && !(list(c(current[1] + 1, current[2])) %in% visited)) {
             nodes[[length(nodes) + 1]] = c(current[1] + 1, current[2])
-            #print(c(v=1,current[1], current[2]))
             costs = append(costs, hroads[current[2], current[1]])
         }   
         ## If node below exists and not yet visited
@@ -115,14 +123,13 @@ astar = function(sx, sy, gx, gy, hroads, vroads) {
         ## If node above exists and not yet visited
         if(current[2] < ncol && !(list(c(current[1], current[2] + 1)) %in% visited)) {
             nodes[[length(nodes) + 1]] = c(current[1], current[2] + 1)
-            #print(c(h=1,current[1], current[2] + 1))
             costs = append(costs, vroads[current[2], current[1]])
         }
         
         ## Loop over found nodes
         for(i in 1:length(nodes)) {
             ## Cost to found node
-            cost = (curcost + manhattan(nodes[[i]], c(gx, gy)) - manhattan(current, c(gx, gy)) + costs[[i]])
+            cost = (curcost + manhattan(nodes[[i]][1], nodes[[i]][2], gx, gy) - manhattan(current[1], current[2], gx, gy) + costs[[i]])
             
             ## Push node to frontier or update existing one if lower cost
             if(frontier$exist(nodes[[i]])) {
@@ -140,43 +147,39 @@ astar = function(sx, sy, gx, gy, hroads, vroads) {
 }           
 
 ## Manhattan distance from (c1, c2) to (g1, g2)
-manhattan = function(c, g) {
-    return (abs(c[1] - g[1]) + abs(c[2] - g[2]))
+manhattan = function(c1, c2, g1, g2) {
+    return (abs(c1 - g1) + abs(c2 - g2))
 }
 
-#costs <- c()
-# computeOptimalOrder: returns the optimal order of packages in p 
+## costs <- c()
+## computeOptimalOrder: returns the optimal order of packages in p 
 computeOptimalOrder=function(p){
-  distanceToFirst <- mapply(manhattanDist, 1, 1, p[1:5,1], p[1:5,2])
-  # Compute costs btw all destinations and origins
+  distanceToFirst <- mapply(manhattan, 1, 1, p[1:5,1], p[1:5,2])
+  ## Compute costs btw all destinations and origins
   rows <- c()
   for(i in 1:5){
-    rows <- c(rows, mapply(manhattanDist, p[i,3], p[i,4], p[1:5,1], p[1:5,2]))
+    rows <- c(rows, mapply(manhattan, p[i,3], p[i,4], p[1:5,1], p[1:5,2]))
   }
   routeCosts <- matrix(rows, nrow=5, byrow=TRUE)
   routes <- cbind(distanceToFirst, routeCosts)
   combinations = getall(iterpc(5, 5, ordered=TRUE))
-  # Compute costs for all combinations of paths
+  ## Compute costs for all combinations of paths
   pathCosts <- c()
   for(i in 1:120){
     pathCosts <- c(pathCosts, evalRoute(routes, combinations[i,]))
   }
-  # costs <<- c(costs, min(pathCosts))
+  ## costs <<- c(costs, min(pathCosts))
   optimal = combinations[which.min(pathCosts),]
   return(optimal)
 }
 
-# evalRoute: returns the sum of manhattan distances btw nodes in "deliveryOrder"
+## evalRoute: returns the sum of manhattan distances btw nodes in "deliveryOrder"
 evalRoute=function(costTable, deliveryOrder){
   sum = costTable[deliveryOrder[1], 1]
   for(d in 1:(length(deliveryOrder)-1)){
     sum = sum + costTable[deliveryOrder[d], deliveryOrder[d+1] + 1]
   }
   return(sum)
-}
-
-manhattanDist=function(start.x, start.y, finish.x, finish.y){
-  return(abs(start.x - finish.x) + abs(start.y - finish.y))
 }
 
 ## modified priority queue from
