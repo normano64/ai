@@ -1,11 +1,41 @@
-## smartDM = function(car, roads, packages) {
-##   toGo = 0
-##   if(car$load == 0) {
-
-##   } else {
-##     toGo = 
-##   }
-## }
+#car.test <- c()
+#packages.test <- c()
+#roads.test <- c()
+#toGo.test <- 0
+smartDM = function(roads,car,packages) {
+  toGo=0
+  if(length(car$mem) > 0){
+    optimalOrder = car$mem[[1]]
+  }
+  if (car$load==0) {
+    if(length(car$mem) == 0){
+      optimalOrder = computeOptimalOrder(packages)
+      car$mem=list(optimalOrder)
+    }
+    for(i in optimalOrder){
+      if(packages[i,5] == 0 | packages[i,5] == 1){
+        toGo=i
+        break
+      }
+    }
+  } else {
+    toGo=car$load
+  }
+  #car.test <<- car
+  #packages.test <<- packages
+  #roads.test <<- roads 
+  #toGo.test <<- toGo
+  path = astar(car$x, car$y, packages[toGo,3], packages[toGo,4], roads$hroads, roads$vroads) 
+  nextNode = path[length(path) - 1][[1]]  
+  # (2 down, 4 left, 6 right, 8 up, 5 stay still).
+  if (all(c(car$x + 1, car$y) == nextNode)) {nextMove=6}
+  else if (all(c(car$x - 1, car$y) == nextNode)) {nextMove=4}
+  else if (all(c(car$x, car$y + 1) == nextNode)) {nextMove=8}
+  else if (all(c(car$x, car$y - 1) == nextNode)) {nextMove=2}
+  else {nextMove=5}
+  car$nextMove=nextMove
+  return (car)
+}
 
 reconstruct = function(nodes, start) {
     ## List for reconstructed path
@@ -73,7 +103,7 @@ astar = function(sx, sy, gx, gy, hroads, vroads) {
         ## If node to right exists and not yet visited
         if(current[1] < nrow && !(list(c(current[1] + 1, current[2])) %in% visited)) {
             nodes[[length(nodes) + 1]] = c(current[1] + 1, current[2])
-            print(c(v=1,current[1], current[2]))
+            #print(c(v=1,current[1], current[2]))
             costs = append(costs, hroads[current[2], current[1]])
         }   
         ## If node below exists and not yet visited
@@ -84,7 +114,7 @@ astar = function(sx, sy, gx, gy, hroads, vroads) {
         ## If node above exists and not yet visited
         if(current[2] < ncol && !(list(c(current[1], current[2] + 1)) %in% visited)) {
             nodes[[length(nodes) + 1]] = c(current[1], current[2] + 1)
-            print(c(h=1,current[1], current[2] + 1))
+            #print(c(h=1,current[1], current[2] + 1))
             costs = append(costs, vroads[current[2], current[1]])
         }
         
@@ -111,6 +141,41 @@ astar = function(sx, sy, gx, gy, hroads, vroads) {
 ## Manhattan distance from (c1, c2) to (g1, g2)
 manhattan = function(c, g) {
     return (abs(c[1] - g[1]) + abs(c[2] - g[2]))
+}
+
+#costs <- c()
+# computeOptimalOrder: returns the optimal order of packages in p 
+computeOptimalOrder=function(p){
+  distanceToFirst <- mapply(manhattanDist, 1, 1, p[1:5,1], p[1:5,2])
+  # Compute costs btw all destinations and origins
+  rows <- c()
+  for(i in 1:5){
+    rows <- c(rows, mapply(manhattanDist, p[i,3], p[i,4], p[1:5,1], p[1:5,2]))
+  }
+  routeCosts <- matrix(rows, nrow=5, byrow=TRUE)
+  routes <- cbind(distanceToFirst, routeCosts)
+  combinations = getall(iterpc(5, 5, ordered=TRUE))
+  # Compute costs for all combinations of paths
+  pathCosts <- c()
+  for(i in 1:120){
+    pathCosts <- c(pathCosts, evalRoute(routes, combinations[i,]))
+  }
+  # costs <<- c(costs, min(pathCosts))
+  optimal = combinations[which.min(pathCosts),]
+  return(optimal)
+}
+
+# evalRoute: returns the sum of manhattan distances btw nodes in "deliveryOrder"
+evalRoute=function(costTable, deliveryOrder){
+  sum = costTable[deliveryOrder[1], 1]
+  for(d in 1:(length(deliveryOrder)-1)){
+    sum = sum + costTable[deliveryOrder[d], deliveryOrder[d+1] + 1]
+  }
+  return(sum)
+}
+
+manhattanDist=function(start.x, start.y, finish.x, finish.y){
+  return(abs(start.x - finish.x) + abs(start.y - finish.y))
 }
 
 ## modified priority queue from
@@ -161,3 +226,19 @@ queue = function() {
     empty = function() length(keys) == 0
     list(push = push, pop = pop, update = update, peek = peek, exist = exist, size = size, empty = empty)
 }
+
+# graphs=function(n){
+#   test.run <- replicate(10,runDeliveryMan(smartDM,visual=FALSE, pause=0))
+#   cumulative.average = cumsum(test.run) / seq_along(test.run)
+#   qplot(1:n, cumulative.average, geom=c("line","smooth"), ylab="Turns, Cumulatice Average", 
+#         xlab="Test runs", main="Performance, unoptimized version (basicDM)")
+#   tail(cumulative.average)
+#   
+#   #basicDM 263, optimized 207
+#   
+#   coststable <- as.data.frame(costs, test.run)
+#   ggplot(coststable, aes(x=costs, y=test.run)) + 
+#     ggtitle("Correlation, distance between paris and turns to complete") +
+#     xlab("Manhattan distance, origin - destination pairs") +
+#     ylab("Turns to complete") + geom_point() + geom_smooth(method=lm, se=FALSE)
+# }
