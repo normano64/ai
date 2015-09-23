@@ -1,45 +1,62 @@
 library("DeliveryMan")
 library("ggplot2")
 library("iterpc")
- 
-smartDM = function(roads,car,packages) {
+
+smartDM = function(roads, car, packages) {
     toGo=0
-    if(length(car$mem) > 0){
+
+    ## Load optimal order if in mem
+    if(length(car$mem) > 0) {
         optimalOrder = car$mem[[1]]
     }
-    if (car$load==0) {
-        if(length(car$mem) == 0){
+
+    ## Find next package to pick up if not loaded
+    if(car$load == 0) {
+        ## Compute optimal path and save to mem if not set
+        if(length(car$mem) == 0) {
             optimalOrder = computeOptimalOrder(packages)
-            car$mem=list(optimalOrder)
+            car$mem = list(optimalOrder)
         }
-        for(i in optimalOrder){
-            if(packages[i,5] == 0 | packages[i,5] == 1){
+        ## Next package
+        for(i in optimalOrder) {
+            if(packages[i,5] == 0 | packages[i,5] == 1) {
                 toGo=i
                 break
             }
         }
     } else {
-        toGo=car$load
+        toGo = car$load
     }
-    car.test <<- car
-    packages.test <<- packages
-    roads.test <<- roads 
-    toGo.test <<- toGo
-    if(packages[toGo,5] == 0){offset = 0} 
-    else{offset = 2}
-    path = astar(car$x, car$y, packages[toGo,1+offset], packages[toGo,2+offset], roads$hroads, roads$vroads)
+
+    ## Different coordinates if loaded or pick-up
+    if(packages[toGo,5] == 0) {
+        offset = 0
+    } else {
+        offset = 2
+    }
+
+    ## Use A* for next node towards desination
+    path = astar(car$x, car$y, packages[toGo, 1 + offset], packages[toGo, 2 + offset], roads$hroads, roads$vroads)
     if(length(path) > 1) {
         nextNode = path[length(path) - 1][[1]]
     } else {
         nextNode = path[1][[1]]
     }
-    ## (2 down, 4 left, 6 right, 8 up, 5 stay still).
-    if (all(c(car$x + 1, car$y) == nextNode)) {nextMove=6}
-    else if (all(c(car$x - 1, car$y) == nextNode)) {nextMove=4}
-    else if (all(c(car$x, car$y + 1) == nextNode)) {nextMove=8}
-    else if (all(c(car$x, car$y - 1) == nextNode)) {nextMove=2}
-    else {nextMove=5}
-    car$nextMove=nextMove
+
+    ## 2 down, 4 left, 6 right, 8 up and 5 stay still
+    if (all(c(car$x + 1, car$y) == nextNode)) {
+        nextMove=6
+    } else if (all(c(car$x - 1, car$y) == nextNode)) {
+        nextMove=4
+    } else if (all(c(car$x, car$y + 1) == nextNode)) {
+        nextMove=8
+    } else if (all(c(car$x, car$y - 1) == nextNode)) {
+        nextMove=2
+    } else {
+        nextMove=5
+    }
+    car$nextMove = nextMove
+
     return (car)
 }
 
@@ -50,7 +67,7 @@ reconstruct = function(nodes, start) {
     ## Current node as list(node, parent node))
     current = nodes[[length(nodes)]]
     path[[1]] = current[[1]]
-    
+
     if(all(current[[1]] == start)) {
         return(path)
     }
@@ -71,7 +88,7 @@ reconstruct = function(nodes, start) {
 
     ## Add start to path
     path[[length(path) + 1]] = c(x=start[1], y=start[2])
-    
+
     return(path)
 }
 
@@ -79,14 +96,14 @@ astar = function(sx, sy, gx, gy, hroads, vroads) {
     ## Create frontier queue and push start node
     frontier = queue()
     frontier$push(manhattan(sx, sy, gx, gy), list(c(x=sx, y=sy),c(x=0,y=0)))
-    
+
     ## Lists of visited nodes
     visited = list()
 
     ## Number of rows & cols
     nrow = nrow(hroads)
     ncol = ncol(vroads)
-    
+
     while(TRUE) {
         ## Pop nod with lowest cost
         pop = frontier$pop()
@@ -98,39 +115,39 @@ astar = function(sx, sy, gx, gy, hroads, vroads) {
         ## Break loop if node is goal
         if(all(current == c(gx, gy))) {
             break;
-        }   
+        }
 
         ## List of nodes not yet visited
         nodes = list()
         ## List of cost to those nodes
         costs = list()
-            
+
         ## If node to left exists and not yet visited
         if(current[1] > 1 && !(list(c(current[1] - 1, current[2])) %in% visited)) {
             nodes[[length(nodes) + 1]] = c(current[1] - 1, current[2])
             costs = append(costs, hroads[current[2], current[1] - 1])
-        }   
+        }
         ## If node to right exists and not yet visited
         if(current[1] < nrow && !(list(c(current[1] + 1, current[2])) %in% visited)) {
             nodes[[length(nodes) + 1]] = c(current[1] + 1, current[2])
             costs = append(costs, hroads[current[2], current[1]])
-        }   
+        }
         ## If node below exists and not yet visited
         if(current[2] > 1 && !(list(c(current[1], current[2] - 1)) %in% visited)) {
             nodes[[length(nodes) + 1]] = c(current[1], current[2] - 1)
             costs = append(costs, vroads[current[2] - 1, current[1]])
-        }   
+        }
         ## If node above exists and not yet visited
         if(current[2] < ncol && !(list(c(current[1], current[2] + 1)) %in% visited)) {
             nodes[[length(nodes) + 1]] = c(current[1], current[2] + 1)
             costs = append(costs, vroads[current[2], current[1]])
         }
-        
+
         ## Loop over found nodes
         for(i in 1:length(nodes)) {
             ## Cost to found node
             cost = (curcost + manhattan(nodes[[i]][1], nodes[[i]][2], gx, gy) - manhattan(current[1], current[2], gx, gy) + costs[[i]])
-            
+
             ## Push node to frontier or update existing one if lower cost
             if(frontier$exist(nodes[[i]])) {
                 if(frontier$peek(nodes[[i]]) > cost) {
@@ -139,12 +156,12 @@ astar = function(sx, sy, gx, gy, hroads, vroads) {
             } else {
                 frontier$push(cost, list(nodes[[i]],current))
             }
-        }   
+        }
     }
-    
+
     ## Reconstruct path and return it
     return(reconstruct(visited, c(sx, sy)))
-}           
+}
 
 ## Manhattan distance from (c1, c2) to (g1, g2)
 manhattan = function(c1, c2, g1, g2) {
@@ -152,34 +169,34 @@ manhattan = function(c1, c2, g1, g2) {
 }
 
 ## costs <- c()
-## computeOptimalOrder: returns the optimal order of packages in p 
+## computeOptimalOrder: returns the optimal order of packages in p
 computeOptimalOrder=function(p){
-  distanceToFirst <- mapply(manhattan, 1, 1, p[1:5,1], p[1:5,2])
-  ## Compute costs btw all destinations and origins
-  rows <- c()
-  for(i in 1:5){
-    rows <- c(rows, mapply(manhattan, p[i,3], p[i,4], p[1:5,1], p[1:5,2]))
-  }
-  routeCosts <- matrix(rows, nrow=5, byrow=TRUE)
-  routes <- cbind(distanceToFirst, routeCosts)
-  combinations = getall(iterpc(5, 5, ordered=TRUE))
-  ## Compute costs for all combinations of paths
-  pathCosts <- c()
-  for(i in 1:120){
-    pathCosts <- c(pathCosts, evalRoute(routes, combinations[i,]))
-  }
-  ## costs <<- c(costs, min(pathCosts))
-  optimal = combinations[which.min(pathCosts),]
-  return(optimal)
+    distanceToFirst <- mapply(manhattan, 1, 1, p[1:5,1], p[1:5,2])
+    ## Compute costs btw all destinations and origins
+    rows <- c()
+    for(i in 1:5){
+        rows <- c(rows, mapply(manhattan, p[i,3], p[i,4], p[1:5,1], p[1:5,2]))
+    }
+    routeCosts <- matrix(rows, nrow=5, byrow=TRUE)
+    routes <- cbind(distanceToFirst, routeCosts)
+    combinations = getall(iterpc(5, 5, ordered=TRUE))
+    ## Compute costs for all combinations of paths
+    pathCosts <- c()
+    for(i in 1:120){
+        pathCosts <- c(pathCosts, evalRoute(routes, combinations[i,]))
+    }
+    ## costs <<- c(costs, min(pathCosts))
+    optimal = combinations[which.min(pathCosts),]
+    return(optimal)
 }
 
 ## evalRoute: returns the sum of manhattan distances btw nodes in "deliveryOrder"
 evalRoute=function(costTable, deliveryOrder){
-  sum = costTable[deliveryOrder[1], 1]
-  for(d in 1:(length(deliveryOrder)-1)){
-    sum = sum + costTable[deliveryOrder[d], deliveryOrder[d+1] + 1]
-  }
-  return(sum)
+    sum = costTable[deliveryOrder[1], 1]
+    for(d in 1:(length(deliveryOrder) - 1)){
+        sum = sum + costTable[deliveryOrder[d], deliveryOrder[d + 1] + 1]
+    }
+    return(sum)
 }
 
 ## modified priority queue from
@@ -229,20 +246,4 @@ queue = function() {
     ## TRUE if queue is empty, else FALSE
     empty = function() length(keys) == 0
     list(push = push, pop = pop, update = update, peek = peek, exist = exist, size = size, empty = empty)
-}
-
-graphs=function(n){
-  test.run <- replicate(500,runDeliveryMan(smartDM,visual=FALSE, pause=0))
-  cumulative.average = cumsum(test.run) / seq_along(test.run)
-  qplot(1:500, cumulative.average, geom=c("line","smooth"), ylab="Turns, Cumulatice Average", 
-        xlab="Test runs", main="Performance, unoptimized version (basicDM)")
-  tail(cumulative.average)
-  
-  #basicDM 263, optimized 207
-  
-  coststable <- as.data.frame(costs, test.run)
-  ggplot(coststable, aes(x=costs, y=test.run)) + 
-    ggtitle("Correlation, distance between paris and turns to complete") +
-    xlab("Manhattan distance, origin - destination pairs") +
-    ylab("Turns to complete") + geom_point() + geom_smooth(method=lm, se=FALSE)
 }
