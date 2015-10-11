@@ -1,25 +1,174 @@
-\documentclass[a4paper,11pt]{article}
-\usepackage{fullpage}
-\usepackage[british]{babel}
+\documentclass[a4paper]{article}
 
+\usepackage[english]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
 \usepackage{amsmath}
-\usepackage{amssymb}
-\usepackage{color}
-\usepackage{float}
+\usepackage{graphicx}
+\usepackage[colorinlistoftodos]{todonotes}
 \usepackage{listings}
+\usepackage[margin = 1.2in]{geometry}
+\usepackage{color}
+\usepackage{graphicx}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{float}
+\usepackage{hyperref}
 \usepackage{minted}
 
-\usepackage{multirow}
-\usepackage{hyperref}
+\title{Assignment 1 Report by Team 9 \\ Artificial Intelligence (Course 1DL340) \\ Uppsala University - Fall 2015\\ }
 
-\title{\textbf{Artificial Intelligence (course 1DL340) \\
-    Uppsala University -- Autumn 2015 \\
-    Report for Assignment 1 by Group 9}}
-\author{Per Bergqwist \and Johan Lundgren \and
-Staffan Reinius \and Linda Suihko}
+\author{Per Bergqwist, Johan Lundgren, Staffan Reinius, Linda Suihko.}
+
 \date{\today}
+
 \begin{document}
 \maketitle
-\section{}
+
+\vfill
+
+\section{Problem Formulation}
+
+The task was to get an agent to find five packages and deliver them to their respective destinations on a 10 x 10 grid with as little cost as possible. The environment also changed stochastically, the cost of moving from one node to the other changed.\\
+\\
+We where given an agent with its position, information about all costs in the grid, information about which package being carried and a memory to write to, and we were to return the car object with its next move.\\
+\\
+Two example agents were given, the better of them (basicDM) performing on average 263 turns (cumulative average after 500 runs, see Figure \ref{fig:prob}).\\
+\begin{figure}[H]
+  \centering
+    \includegraphics[width=0.75\textwidth]{2}
+    \caption{Cumulative average, 263 after 500 runs, of turns to complete for basicDM agent.}
+    \label{fig:prob}
+\end{figure}
+\vfill
+\newpage
+
+\section{An overview of A* and optimality}
+The A star (A*) algorithm is an extension of Dijkstra's path finding algorithm but performs better by using \textbf{heuristics} $h(n)$ on a finite number of nodes. Without heuristics ($h(n) = 0$) A* is not guaranteed to expand fewer nodes than another search algorithms. The A algorithm was originally a collection of algorithms but was later labeled A* when denoted optimality by using heuristics.\\
+\\
+The main purpose of the A* algorithm is to do directed (nonuniform) search to find the least-cost path from an initial node to the goal node, by using best-first search where it traverses through the graph and builds up a tree of partial graphs, stored in a priority queue. The total cost of a path is the weight of the edges up to the current expanded node combined with the heuristic value of next node.\\
+\\
+$f(n) = g(n) + h(n)$ \\
+\\
+Here $f(n)$ is the etimated cost of the cheapest solution through $n$ - a sum of $g(n)$ which is the cost to reach the node and $h(n)$ which is the cost (heuristic value) to get from $n$ to the goal node. The heuristic function must be consistent (monotonic) for graph search and at least admissible for tree search. Consistency is a stricter requirement than admissibility, therefor an admissible heuristic is also consistent, but most admissible heuristics are also consistent. An admissible heuristic is one that never overestimates the actual cost to the goal. If an A* heuristic is admissible it will never overlook the possibility of a lower-cost path, therefor A* is optimal. The function for $h$ is specific to the problem and must be provided by the user of the algorithm. \\
+\\
+An idea of a proof of A* being optimal is that if A* is optimal and $h(n)$ is admissible it will come to an optimal solution, if one exist, it will reach a goal $G$ where path to $G$ has the lowest cost. To prove that A* is optimal is by contradiction, assuming that A* is not optimal then it will reach a goal $G_2$ whereas cost will be greater than the optimal goal $f(G_2) > f(G)$. This would result in a suboptimal goal, which in that case is a contradiction.
+
+\section{Problem Approach} 
+The task can be seen as two sub-problems: one is to find the shortest path between the current car position and the next packet/destination – implemented with A * (an online search, interleaving computations and actions), and the other to order the deliveries so that the sum of the distances between destinations and the next package is minimized (an offline search).\\
+\\
+The task could also be seen as one coherent - to find the shortest path through all packet destination pairs, which would require a deeper search through the state space. But because the environment changed stochastically and online search then was required we excluded that approach – we did not find it suitable to search trough all possible solution after each action.\\
+\\
+Instead A* was implemented to search locally after each action, and the delivery order was computed offline based on Manhattan distances before the agent began acting.
+
+\subsection{Delivery Order (non A* strategy)}
+The delivery order computation was implemented by setting up a 5 x 5 table with the distance between all destinations and packet origins, as well as the Manhattan distances from the car's current position to all packet positions. Furthermore there are 5! ways of arranging five packets (drawing five without replacement) - all these 120 combinations paths was evaluated and a minimum was selected (see Listing \ref{code:computeOptimalOrder}).\\
+\\
+Initially the issue whether the delivery order would play a major role was tested - local decisions (e.g. choosing a path with cost 2 over one with costs 10 or more can seemingly have a much greater impact). Therefore the correlation between turns to complete and the distance of the delivery order was examined (see Figure \ref{fig:manhattan}). Also the basicDM agent was given an optimal delivery order implementation to see if it improved. basicDM had a cumulative average of 263 turns after 500 test runs (see Figure \ref{fig:basic}), while an optimized basicDM had a cumulative average of 207 after 500 runs (see Figure \ref{fig:opti}).
+
+\begin{figure}[h]
+  \centering
+    \includegraphics[width=0.75\textwidth]{3}
+    \caption{Illustrating 500 test runs plotted against number of turns to complete and the sum of Manhattan distance from the car to the first package plus all distances from the delivery points to the next package, with a regression line to illustrate correlation.}
+    \label{fig:manhattan}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+    \includegraphics[width=0.75\textwidth]{4}
+    \caption{With an optimized delivery plan basicDM was improved from \ref{fig:prob} (On average 207 after 500 runs.)}
+    \label{fig:basic}
+\end{figure}
+
+\section{Implementation of the A* search algorithm}
+We used A* for calculating the shortest path from car to pick-up/drop-off point. It uses a priority queue (see Listing \ref{code:queue}) ordered by lowest cost for handling which node to go visit. The cost used is the paths from start to current node and the current nodes heuristic, calculated with the Manhattan Distance. When visiting a node, it adds all nodes that hasn't been visited to a queue with their cost. Already queued nodes may be updated if the new cost is lower than earlier ones. Together with the node is also the parent node stored for later use. It will continue to loop until the current node is the goal node. When the goal is visited, we want to reconstruct a path with the lowest cost which is possible by going from the goal node to the first one by looking at the node's parent and then their parent and so on and storing which node we are going through. This will result in the optimal path from start to goal.(see Listing \ref{code:reconstruct})\\
+\\
+Our implementation was a graph search version of A* as the environment itself was an undirected graph with 10 x 10 nodes. Also a tree can not have multiple parents to a node and therefore makes it unfitting – we wanted to compute the optimal path by finding the lowest cost among perhaps several paths which made tree search unsuitable.\\
+\\
+The heuristic has to be consistent for optimal A* when using a graph search version.\cite[p.~95]{ai} We uses the Manhattan Distance for the heuristic because it satisfies the condition for consistency and is easy to implement; it calculates the heuristic as number of steps from goal to start, starting at zero. The Manhattan Distance is nondecreasing along any path and therefore fitting for the A* algorithm.
+
+\section{Results}
+With out implementation of a A* graph search version, using The Manhattan Distance as heuristic and a non A* strategy for the delivery order we were able to lower the number of turns needed for picking up and delivering all packages compared to a very basic delivery man.
+\begin{figure}[H]
+  \centering
+    \includegraphics[width=0.75\textwidth]{1}
+    \caption{Cumulative average of turns to complete for the A* agent, with an average of 161 turns after 500 runs}
+    \label{fig:opti}
+\end{figure}
+
+\begin{thebibliography}{9}
+  \bibitem{ai}
+    Russel, S \& Norvig, P, 2010, \emph{Artificial Intelligence: A Modern Approach}, 3rd Edition, Pearson
+\end{thebibliography}
+\section*{Appendix}
+\begin{listing}[H]
+  \vspace*{-10pt}
+  \inputminted[mathescape,linenos,numbersep=5pt,firstline=173,lastline=192,
+      framesep=4pt,frame=single,fontsize=\footnotesize,
+      samepage=true,tabsize=2,numbers=left]{R}{smartDM.R}
+  \vspace*{-16pt}
+  \caption{Code for computing optimal delivery order}
+  \label{code:computeOptimalOrder}
+\end{listing}
+
+\begin{listing}[H]
+  \vspace*{-10pt}
+  \inputminted[mathescape,linenos,numbersep=5pt,firstline=167,lastline=170,
+      framesep=4pt,frame=single,fontsize=\footnotesize,
+      samepage=true,tabsize=2,numbers=left]{R}{smartDM.R}
+  \vspace*{-16pt}
+  \caption{Manhattan Distance}
+  \label{code:manhattan}
+\end{listing}
+
+\begin{listing}[H]
+  \vspace*{-10pt}
+  \inputminted[mathescape,linenos,numbersep=5pt,firstline=63,lastline=93,
+      framesep=4pt,frame=single,fontsize=\footnotesize,
+      samepage=true,tabsize=2,numbers=left]{R}{smartDM.R}
+  \vspace*{-16pt}
+  \caption{Function to reconstruct path}
+  \label{code:reconstruct}
+\end{listing}
+
+\begin{listing}[H]
+  \vspace*{-10pt}
+  \inputminted[mathescape,linenos,numbersep=5pt,firstline=95,lastline=165,
+      framesep=4pt,frame=single,fontsize=\footnotesize,
+      samepage=true,tabsize=2,numbers=left]{R}{smartDM.R}
+  \vspace*{-16pt}
+  \caption{Code for A*}
+  \label{code:astar}
+\end{listing}
+
+\begin{listing}[H]
+  \vspace*{-10pt}
+  \inputminted[mathescape,linenos,numbersep=5pt,firstline=203,lastline=251,
+      framesep=4pt,frame=single,fontsize=\footnotesize,
+      samepage=true,tabsize=2,numbers=left]{R}{smartDM.R}
+  \vspace*{-16pt}
+  \caption{Implementation of the priority queue}
+  \label{code:queue}
+\end{listing}
+
+\begin{listing}[H]
+  \vspace*{-10pt}
+  \inputminted[mathescape,linenos,numbersep=5pt,firstline=194,lastline=201,
+      framesep=4pt,frame=single,fontsize=\footnotesize,
+      samepage=true,tabsize=2,numbers=left]{R}{smartDM.R}
+  \vspace*{-16pt}
+  \caption{Sum of Manhattan Distance in ``delivery order''}
+  \label{code:eval}
+\end{listing}
+
+\begin{listing}[H]
+  \vspace*{-10pt}
+  \inputminted[mathescape,linenos,numbersep=5pt,firstline=5,lastline=61,
+      framesep=4pt,frame=single,fontsize=\footnotesize,
+      samepage=true,tabsize=2,numbers=left]{R}{smartDM.R}
+  \vspace*{-16pt}
+  \caption{Delivery man}
+  \label{code:dm}
+\end{listing}
 
 \end{document}
