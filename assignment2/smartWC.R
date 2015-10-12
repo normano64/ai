@@ -15,6 +15,19 @@ smartWC = function(moveInfo, readings, positions, edges, probs) {
     ## Current obeservations
     currentObservation = get.observations(readings, probs)
 
+    ## If backpacker dies set observation to 1, else if still alive
+    ## set 0
+    for(i in 1:length(positions[1:2])) {
+        if(is.na(positions[i]) == FALSE) {
+            if(positions[i] < 0) {
+                currentObservation[-positions[i]] = 1
+            }
+             else {
+                currentObservation[positions[i]] = 0
+            }
+        }
+    }
+
     ## Store current observations to mem if no past exists, else load
     ## past and multiply with current and store new
     if(length(moveInfo$mem$obs) == 0) {
@@ -87,8 +100,8 @@ makeTransitionMatrix = function(edges) {
     return(transitionMatrix)
 }
 
-test.run <- replicate(1000,runWheresCroc(smartWC, pause=0, doPlot=F))
+test.run <- replicate(1000,runWheresCroc(smartWC, pause=0))
 cumulative.average = cumsum(test.run) / seq_along(test.run)
-qplot(1:1000, cumulative.average, geom=c("line","smooth"), ylab="Turns, Cumulatice Average", 
-      xlab="Test runs", main="Performance (smartWC)")
-## tail(cumulative.average)
+## qplot(1:1000, cumulative.average, geom=c("line","smooth"), ylab="Turns, Cumulatice Average", 
+##       xlab="Test runs", main="Performance (smartWC)")
+print(tail(cumulative.average, n=1))
