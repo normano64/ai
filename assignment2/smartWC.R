@@ -1,6 +1,5 @@
 library("DeliveryMan")
 library("ggplot2")
-library("igraph")
 
 smartWC = function(moveInfo, readings, positions, edges, probs) {
     ## Creates and stores the transition matrix if not saved in mem,
