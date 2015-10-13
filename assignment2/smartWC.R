@@ -31,7 +31,7 @@ smartWC = function(moveInfo, readings, positions, edges, probs) {
     ## Store current observations to mem if no past exists, else load
     ## past and multiply with current and store new
     if(length(moveInfo$mem$obs) == 0) {
-        moveInfo$mem$obs = currentObservation #%*% transitionMatrix
+        moveInfo$mem$obs = currentObservation
     } else {
         pastObservation = moveInfo$mem$obs
         currentObservation = normalize((pastObservation %*% transitionMatrix) * currentObservation)
@@ -52,6 +52,7 @@ smartWC = function(moveInfo, readings, positions, edges, probs) {
     return(moveInfo)
 }
 
+## Shortest path
 shortest.path = function(start, goal, edges){
     if(start == goal){
         return(start)
@@ -59,12 +60,48 @@ shortest.path = function(start, goal, edges){
               any(apply(edges, 1, function(x, y) isTRUE(all.equal(x, y)), c(goal,start)))) {
         return(c(start,goal))
     } else {
-        temp.edges = c()
-        for(i in 1:nrow(edges)){
-            temp.edges = c(temp.edges, edges[i,1:2])
+        temp.edges = vector("list", max(edges))
+        temp.edges[] = NA
+
+        ## Fill list with all edges to current node at index
+        for(i in 1:nrow(edges)) {
+            if(is.na(temp.edges[edges[i,1]])) {
+                temp.edges[[edges[i,1]]] = edges[i,2]
+            } else {
+                temp.edges[[edges[i,1]]] = c(temp.edges[[edges[i,1]]], edges[i,2])
+            }
+            if(is.na(temp.edges[edges[i,2]])) {
+                temp.edges[[edges[i,2]]] = edges[i,1]
+            } else {
+                temp.edges[[edges[i,2]]] = c(temp.edges[[edges[i,2]]], edges[i,1])
+            }
         }
-        g = make_empty_graph(n = 40, directed = FALSE) %>% add_edges(temp.edges)
-        return(get.all.shortest.paths(g, start, goal)$res[[1]])
+
+        queue = list(start)
+        visited = vector("list", max(edges))
+        visited = NA
+        
+        ## Expands breadth first until goal is found, stores parents
+        while(queue[[1]] != goal) {
+            for(i in 1:length(temp.edges[[queue[[1]]]])) {
+                if(is.na(visited[temp.edges[[queue[[1]]]][[i]]])) {
+                    queue = append(queue, temp.edges[[queue[[1]]]][[i]])
+                    visited[[temp.edges[[queue[[1]]]][[i]]]] = queue[[1]]
+                }
+            }
+            queue = queue[-1]
+        }
+
+        current = queue[[1]]
+        path = list(current)
+        
+        ## Reconstruct shortest path
+        while(!(current == start)) {
+            current = visited[[current]]
+            path = append(path, current)
+        }
+        
+        return(rev(path))
     }
 }
 
@@ -86,7 +123,7 @@ normalize = function(x){
 
 ## Creates a transition matrix with edges
 makeTransitionMatrix = function(edges) {
-    numPoints = edges[which.max(edges[,2]), 2]
+    numPoints = max(edges)
     transitionMatrix = matrix(0, ncol=numPoints, nrow=numPoints)
 
     for(point in 1:numPoints) {
